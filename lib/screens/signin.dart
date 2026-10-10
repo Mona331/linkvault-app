@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:icons_plus/icons_plus.dart';
+import 'package:linkvault_app/screens/home.dart';
+import 'package:linkvault_app/screens/mainscreen.dart';
 import 'package:linkvault_app/screens/signup.dart';
 import 'package:linkvault_app/widgets/custom_scaffold.dart';
 //import 'package:login_signup/screens/signup_screen.dart';
@@ -152,8 +154,16 @@ class _SignInScreenState extends State<SignInScreen> {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(
                                   content: Text('Processing Data'),
+                                  
                                 ),
                               );
+                                Navigator.pushReplacement(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const MainScreen(),
+                                ),
+                              );
+                              
                             } else if (!rememberPassword) {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(
