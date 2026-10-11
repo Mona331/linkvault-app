@@ -3,6 +3,8 @@ import 'package:icons_plus/icons_plus.dart';
 import 'package:linkvault_app/screens/signin.dart';
 import 'package:linkvault_app/theme/theme.dart';
 import 'package:linkvault_app/widgets/custom_scaffold.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 //import 'package:login_signup/screens/signin_screen.dart';
 // import 'package:login_signup/theme/theme.dart';
 // import 'package:login_signup/widgets/custom_scaffold.dart';
@@ -17,6 +19,72 @@ class SignUpScreen extends StatefulWidget {
 class _SignUpScreenState extends State<SignUpScreen> {
   final _formSignupKey = GlobalKey<FormState>();
   bool agreePersonalData = true;
+  final _nameController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+
+  bool isLoading = false;
+  Future<void> register() async {
+    setState(() {
+      isLoading = true;
+    });
+
+    try {
+      final response = await http.post(
+        Uri.parse('http://10.0.2.2:8000/api/register'),
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'name': _nameController.text.trim(),
+          'email': _emailController.text.trim(),
+          'password': _passwordController.text,
+          'password_confirmation': _passwordController.text,
+        }),
+      );
+
+      final data = jsonDecode(response.body);
+
+      if (!mounted) return;
+
+      if (response.statusCode == 201 || response.statusCode == 200) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Account created successfully!')),
+        );
+
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const SignInScreen()),
+        );
+      } else {
+        String message = data['message'] ?? 'Registration failed';
+
+        if (data['errors'] != null) {
+          final errors = data['errors'] as Map<String, dynamic>;
+          if (errors.isNotEmpty) {
+            message = errors.values.first.first.toString();
+          }
+        }
+
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(message)));
+      }
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Connection error: $e')));
+    } finally {
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+        });
+      }
+    }
+  }
   @override
   Widget build(BuildContext context) {
     return CustomScaffold(
@@ -53,6 +121,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       const SizedBox(height: 40.0),
                       // full name
                       TextFormField(
+                        controller: _nameController,
                         validator: (value) {
                           if (value == null || value.isEmpty) {
                             return 'Please enter Full name';
@@ -80,6 +149,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       const SizedBox(height: 25.0),
                       // email
                       TextFormField(
+                        controller: _emailController,
                         validator: (value) {
                           if (value == null || value.isEmpty) {
                             return 'Please enter Email';
@@ -107,6 +177,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       const SizedBox(height: 25.0),
                       // password
                       TextFormField(
+                        controller: _passwordController,
                         obscureText: true,
                         obscuringCharacter: '*',
                         validator: (value) {
@@ -172,31 +243,38 @@ class _SignUpScreenState extends State<SignUpScreen> {
                               borderRadius: BorderRadius.circular(12),
                             ),
                           ),
-                          onPressed: () {
-                            if (_formSignupKey.currentState!.validate() &&
-                                agreePersonalData) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Processing Data'),
-                                ),
-                              );
-                            } else if (!agreePersonalData) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text(
-                                    'Please agree to the processing of personal data',
+                         onPressed: isLoading
+                              ? null
+                              : () {
+                                  if (_formSignupKey.currentState!.validate() &&
+                                      agreePersonalData) {
+                                    register();
+                                  } else if (!agreePersonalData) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text(
+                                          'Please agree to the processing of personal data',
+                                        ),
+                                      ),
+                                    );
+                                  }
+                                },
+                          child: isLoading
+                              ? const SizedBox(
+                                  height: 20,
+                                  width: 20,
+                                  child: CircularProgressIndicator(
+                                    color: Colors.white,
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : const Text(
+                                  'Sign up',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
                                   ),
                                 ),
-                              );
-                            }
-                          },
-                          child: const Text(
-                            'Sign up',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
                         ),
                       ),
                       const SizedBox(height: 30.0),
