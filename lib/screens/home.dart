@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/material.dart';
 import 'package:linkvault_app/theme/theme.dart';
@@ -17,6 +18,16 @@ class _HomeState extends State<Home> {
   final List<Map<String, dynamic>> categories = [];
 
   bool isLoadingCategories = true;
+  String name = '';
+  final TextEditingController searchController = TextEditingController();
+
+  String searchQuery = '';
+  @override
+  void dispose() {
+    searchController.dispose();
+    super.dispose();
+  }
+
   Future<Map<String, dynamic>> createCategory(String name) async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('token');
@@ -32,16 +43,27 @@ class _HomeState extends State<Home> {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token',
       },
-      body: jsonEncode({'name': name}),
+      body: jsonEncode({'name': name}), //converts the Dart map into JSON
     );
 
-    final data = jsonDecode(response.body);
+    final data = jsonDecode(
+      response.body,
+    ); //The server sends a response, usually as JSON.
 
     if (response.statusCode == 201) {
       return Map<String, dynamic>.from(data['category']);
+      //201 means the resource was created.,the function returns the category information to the code that called it.
     }
 
     throw Exception(data['message'] ?? 'Failed to create category.');
+  }
+
+  Future<void> loadUsername() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    setState(() {
+      name = prefs.getString('name') ?? 'User';
+    });
   }
 
   Future<void> renameCategory(int id, String name) async {
@@ -115,8 +137,11 @@ class _HomeState extends State<Home> {
       );
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        final List<dynamic> apiCategories = data['categories'];
+        final data = jsonDecode(
+          response.body,
+        ); //converts the response from JSON into Dart data.
+        final List<dynamic> apiCategories =
+            data['categories']; //retrieves the list of categories from the categories key.
 
         if (!mounted) return;
 
@@ -467,10 +492,15 @@ class _HomeState extends State<Home> {
   void initState() {
     super.initState();
     fetchCategories();
+      loadUsername();
   }
 
   @override
   Widget build(BuildContext context) {
+    final filteredCategories = categories.where((category) {
+      final name = (category['name'] as String).toLowerCase();
+      return name.contains(searchQuery);
+    }).toList();
     return CustomScaffold(
       child: Column(
         children: [
@@ -484,9 +514,9 @@ class _HomeState extends State<Home> {
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          'Hi, Mona!',
-                          style: TextStyle(
+                        Text(
+                          'Hi, $name !',
+                          style: const TextStyle(
                             color: Colors.white,
                             fontSize: 24,
                             fontWeight: FontWeight.bold,
@@ -494,7 +524,7 @@ class _HomeState extends State<Home> {
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          '10 Oct 2026',
+                          DateFormat('d MMM yyyy').format(DateTime.now()),
                           style: TextStyle(
                             color: Colors.blue[100],
                             fontSize: 15,
@@ -521,15 +551,39 @@ class _HomeState extends State<Home> {
                     color: const Color.fromARGB(197, 5, 99, 142),
                     borderRadius: BorderRadius.circular(15),
                   ),
-                  padding: const EdgeInsets.all(12),
-                  child: const Row(
+                  padding: EdgeInsets.symmetric(horizontal: 12),
+                  child: Row(
                     children: [
                       Icon(Icons.search, color: Colors.white),
                       SizedBox(width: 8),
-                      Text(
-                        'Search categories...',
-                        style: TextStyle(color: Colors.white),
+                      Expanded(
+                        child: TextField(
+                          controller: searchController,
+                          style: TextStyle(color: Colors.white),
+                          cursorColor: Colors.white,
+                          decoration: const InputDecoration(
+                            hintText: 'Search categories...',
+                            hintStyle: TextStyle(color: Colors.white70),
+                            border: InputBorder.none,
+                          ),
+                          onChanged: (value) {
+                            setState(() {
+                              searchQuery = value.trim().toLowerCase();
+                            });
+                          },
+                        ),
                       ),
+                      if (searchQuery.isNotEmpty)
+                        IconButton(
+                          onPressed: () {
+                            searchController.clear();
+                            setState(() {
+                              searchQuery = '';
+                            });
+                          },
+                          icon: const Icon(Icons.close, color: Colors.white),
+                          tooltip: 'Clear search',
+                        ),
                     ],
                   ),
                 ),
@@ -583,10 +637,14 @@ class _HomeState extends State<Home> {
                               'No categories yet. Create your first one!',
                             ),
                           )
+                        : filteredCategories.isEmpty
+                        ? const Center(
+                            child: Text('No matching categories found.'),
+                          )
                         : ListView.builder(
-                            itemCount: categories.length,
+                            itemCount: filteredCategories.length,
                             itemBuilder: (context, index) {
-                              final category = categories[index];
+                              final category = filteredCategories[index];
 
                               return Card(
                                 elevation: 1,
@@ -715,6 +773,7 @@ class _HomeState extends State<Home> {
     );
   }
 }
+
 class RenameCategoryDialog extends StatefulWidget {
   final Map<String, dynamic> category;
   final Future<void> Function(String newName) onRename;
