@@ -14,7 +14,7 @@ class Home extends StatefulWidget {
 }
 
 class _HomeState extends State<Home> {
-final List<Map<String, dynamic>> categories = [];
+  final List<Map<String, dynamic>> categories = [];
 
   bool isLoadingCategories = true;
   Future<Map<String, dynamic>> createCategory(String name) async {
@@ -43,6 +43,56 @@ final List<Map<String, dynamic>> categories = [];
 
     throw Exception(data['message'] ?? 'Failed to create category.');
   }
+
+  Future<void> renameCategory(int id, String name) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('token');
+
+    if (token == null || token.isEmpty) {
+      throw Exception('Please log in first.');
+    }
+
+    final response = await http.put(
+      Uri.parse('http://10.0.2.2:8000/api/categories/$id'),
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({'name': name}),
+    );
+
+    debugPrint('Rename status: ${response.statusCode}');
+    debugPrint('Rename response: ${response.body}');
+
+    if (response.statusCode != 200) {
+      throw Exception('Status ${response.statusCode}: ${response.body}');
+    }
+
+    final data = jsonDecode(response.body);
+    debugPrint('Updated category: ${data['category']}');
+  }
+
+  Future<void> deleteCategory(int id) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('token');
+
+    if (token == null || token.isEmpty) {
+      throw Exception('Please log in first.');
+    }
+
+    final response = await http.delete(
+      Uri.parse('http://10.0.2.2:8000/api/categories/$id'),
+      headers: {'Accept': 'application/json', 'Authorization': 'Bearer $token'},
+    );
+
+    final data = jsonDecode(response.body);
+
+    if (response.statusCode != 200) {
+      throw Exception(data['message'] ?? 'Failed to delete category.');
+    }
+  }
+
   Future<void> fetchCategories() async {
     setState(() {
       isLoadingCategories = true;
@@ -99,6 +149,7 @@ final List<Map<String, dynamic>> categories = [];
       }
     }
   }
+
   IconData _getCategoryIcon(String name) {
     switch (name.toLowerCase()) {
       case 'flutter libraries':
@@ -117,8 +168,34 @@ final List<Map<String, dynamic>> categories = [];
         return Icons.folder_outlined;
     }
   }
+
+  void showRenameCategoryDialog(Map<String, dynamic> category) {
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return RenameCategoryDialog(
+          category: category,
+          onRename: (newName) async {
+            final rawId = category['id'];
+
+            if (rawId is! num) {
+              throw Exception('Invalid category ID.');
+            }
+
+            await renameCategory(rawId.toInt(), newName);
+
+            if (!mounted) return;
+
+            setState(() {
+              category['name'] = newName;
+            });
+          },
+        );
+      },
+    );
+  }
+
   void showAddCategoryDialog() {
-    
     final nameController = TextEditingController();
     IconData selectedIcon = Icons.folder_outlined;
 
@@ -231,7 +308,7 @@ final List<Map<String, dynamic>> categories = [];
                     backgroundColor: lightColorScheme.primary,
                     foregroundColor: Colors.white,
                   ),
-                 onPressed: () async {
+                  onPressed: () async {
                     final name = nameController.text.trim();
 
                     if (name.isEmpty) {
@@ -283,11 +360,115 @@ final List<Map<String, dynamic>> categories = [];
       },
     );
   }
-@override
+
+  void showDeleteCategoryDialog(Map<String, dynamic> category) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        bool isDeleting = false;
+
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              backgroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+              title: const Text(
+                'Delete Category?',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              content: Text(
+                'Are you sure you want to delete '
+                '"${category['name']}"? This action cannot be undone.',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: isDeleting
+                      ? null
+                      : () => Navigator.pop(dialogContext),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red,
+                    foregroundColor: Colors.white,
+                  ),
+                  onPressed: isDeleting
+                      ? null
+                      : () async {
+                          final id = category['id'];
+
+                          if (id == null) {
+                            ScaffoldMessenger.of(this.context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Category ID is missing.'),
+                              ),
+                            );
+                            return;
+                          }
+
+                          setDialogState(() {
+                            isDeleting = true;
+                          });
+
+                          try {
+                            await deleteCategory((id as num).toInt());
+
+                            if (!mounted) return;
+
+                            setState(() {
+                              categories.removeWhere(
+                                (item) => item['id'] == id,
+                              );
+                            });
+
+                            Navigator.pop(dialogContext);
+
+                            ScaffoldMessenger.of(this.context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Category deleted successfully!'),
+                              ),
+                            );
+                          } catch (e) {
+                            if (!mounted) return;
+
+                            setDialogState(() {
+                              isDeleting = false;
+                            });
+
+                            ScaffoldMessenger.of(this.context).showSnackBar(
+                              SnackBar(
+                                content: Text('Could not delete category: $e'),
+                              ),
+                            );
+                          }
+                        },
+                  child: isDeleting
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Text('Yes, Delete'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  @override
   void initState() {
     super.initState();
     fetchCategories();
   }
+
   @override
   Widget build(BuildContext context) {
     return CustomScaffold(
@@ -393,7 +574,7 @@ final List<Map<String, dynamic>> categories = [];
                     ],
                   ),
 
-                Expanded(
+                  Expanded(
                     child: isLoadingCategories
                         ? const Center(child: CircularProgressIndicator())
                         : categories.isEmpty
@@ -459,11 +640,54 @@ final List<Map<String, dynamic>> categories = [];
                                       ),
                                     ),
                                   ),
-                                  trailing: IconButton(
-                                    onPressed: () {
-                                      // Add edit and delete actions later.
-                                    },
+                                  trailing: PopupMenuButton<String>(
                                     icon: const Icon(Icons.more_horiz),
+                                    color: Colors.white,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    onSelected: (value) {
+                                      if (value == 'rename') {
+                                        showRenameCategoryDialog(category);
+                                      } else if (value == 'delete') {
+                                        showDeleteCategoryDialog(category);
+                                      }
+                                    },
+                                    itemBuilder: (context) => [
+                                      const PopupMenuItem<String>(
+                                        value: 'rename',
+                                        child: Row(
+                                          children: [
+                                            Icon(
+                                              Icons.edit_outlined,
+                                              size: 20,
+                                              color: Colors.blue,
+                                            ),
+                                            SizedBox(width: 10),
+                                            Text('Rename'),
+                                          ],
+                                        ),
+                                      ),
+                                      const PopupMenuItem<String>(
+                                        value: 'delete',
+                                        child: Row(
+                                          children: [
+                                            Icon(
+                                              Icons.delete_outline,
+                                              size: 20,
+                                              color: Colors.red,
+                                            ),
+                                            SizedBox(width: 10),
+                                            Text(
+                                              'Delete',
+                                              style: TextStyle(
+                                                color: Colors.red,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                   onTap: () {
                                     Navigator.push(
@@ -481,7 +705,7 @@ final List<Map<String, dynamic>> categories = [];
                               );
                             },
                           ),
-                  )
+                  ),
                 ],
               ),
             ),
@@ -491,4 +715,131 @@ final List<Map<String, dynamic>> categories = [];
     );
   }
 }
+class RenameCategoryDialog extends StatefulWidget {
+  final Map<String, dynamic> category;
+  final Future<void> Function(String newName) onRename;
 
+  const RenameCategoryDialog({
+    super.key,
+    required this.category,
+    required this.onRename,
+  });
+
+  @override
+  State<RenameCategoryDialog> createState() => _RenameCategoryDialogState();
+}
+
+class _RenameCategoryDialogState extends State<RenameCategoryDialog> {
+  late final TextEditingController nameController;
+  bool isSaving = false;
+
+  @override
+  void initState() {
+    super.initState();
+
+    nameController = TextEditingController(
+      text: widget.category['name'] as String,
+    );
+  }
+
+  @override
+  void dispose() {
+    nameController.dispose();
+    super.dispose();
+  }
+
+  Future<void> saveCategory() async {
+    final newName = nameController.text.trim();
+
+    if (newName.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter a category name.')),
+      );
+      return;
+    }
+
+    if (newName == widget.category['name']) {
+      Navigator.of(context).pop();
+      return;
+    }
+
+    setState(() {
+      isSaving = true;
+    });
+
+    try {
+      await widget.onRename(newName);
+
+      if (!mounted) return;
+
+      Navigator.of(context).pop();
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Category renamed successfully!')),
+      );
+    } catch (e, stackTrace) {
+      debugPrint('RENAME ERROR: $e');
+      debugPrint('RENAME STACK TRACE: $stackTrace');
+
+      if (!mounted) return;
+
+      setState(() {
+        isSaving = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Could not rename category: $e'),
+          duration: const Duration(seconds: 5),
+        ),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      backgroundColor: Colors.white,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      title: const Text(
+        'Rename Category',
+        style: TextStyle(fontWeight: FontWeight.bold),
+      ),
+      content: TextField(
+        controller: nameController,
+        autofocus: true,
+        enabled: !isSaving,
+        textCapitalization: TextCapitalization.words,
+        decoration: InputDecoration(
+          labelText: 'Category Name',
+          hintText: 'Enter a new name',
+          prefixIcon: const Icon(Icons.edit_outlined),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: isSaving ? null : () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton(
+          onPressed: isSaving ? null : saveCategory,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: lightColorScheme.primary,
+            foregroundColor: Colors.white,
+          ),
+          child: isSaving
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
+                )
+              : const Text('Save'),
+        ),
+      ],
+    );
+  }
+}
