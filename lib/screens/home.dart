@@ -492,7 +492,7 @@ class _HomeState extends State<Home> {
   void initState() {
     super.initState();
     fetchCategories();
-      loadUsername();
+    loadUsername();
   }
 
   @override
@@ -748,11 +748,14 @@ class _HomeState extends State<Home> {
                                     ],
                                   ),
                                   onTap: () {
-                                    Navigator.push(
+                                   Navigator.push(
                                       context,
                                       MaterialPageRoute(
                                         builder: (context) =>
                                             CategoryLinksScreen(
+                                              categoryId: int.parse(
+                                                category['id'].toString(),
+                                              ),
                                               categoryName:
                                                   category['name'] as String,
                                             ),

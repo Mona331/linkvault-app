@@ -3,15 +3,16 @@ import 'package:flutter/material.dart';
 import 'package:linkvault_app/theme/theme.dart';
 
 class CustomScaffold extends StatefulWidget {
-  const CustomScaffold({super.key, this.child});
+  const CustomScaffold({super.key, this.child, this.titlet});
   final Widget? child;
+  final Text? titlet;
 
   @override
   State<CustomScaffold> createState() => _CustomScaffoldState();
 }
 
 class _CustomScaffoldState extends State<CustomScaffold> {
- // int index = 2;
+  // int index = 2;
 
   @override
   Widget build(BuildContext context) {
@@ -25,6 +26,7 @@ class _CustomScaffoldState extends State<CustomScaffold> {
       appBar: AppBar(
         iconTheme: IconThemeData(color: Colors.white),
         backgroundColor: Colors.transparent,
+        //title:titlrt,
         elevation: 0,
       ),
       extendBodyBehindAppBar: true,
