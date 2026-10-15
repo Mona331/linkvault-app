@@ -18,14 +18,14 @@ class _MainScreenState extends State<MainScreen> {
 
   final List<Widget> pages = [
     Home(),
-    FavoriteScreen(),
+    //FavoriteScreen(),
     AddLink(),
     ProfileScreen(),
   ];
 
   final List<Widget> items = [
     const Icon(Icons.home, size: 28, color: Colors.white),
-   const Icon(Icons.favorite, size: 28, color: Colors.white),
+  // const Icon(Icons.favorite, size: 28, color: Colors.white),
     const Icon(Icons.add, size: 28, color: Colors.white),
     const Icon(Icons.person, size: 28, color: Colors.white),
   ];
