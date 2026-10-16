@@ -1,8 +1,11 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
+import 'package:linkvault_app/theme/theme.dart';
 import 'package:linkvault_app/widgets/custom_scaffold.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -16,151 +19,295 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   File? imageFile;
   bool isUploading = false;
+  String? profileImageUrl;
 
+  Future<void> pickImage() async {
+    try {
+      final ImagePicker picker = ImagePicker();
 
-Future<void> pickImage() async {
-  try {
-    final ImagePicker picker = ImagePicker();
+      final XFile? picked = await picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 80,
+      );
 
-    final XFile? picked = await picker.pickImage(
-      source: ImageSource.gallery,
-      imageQuality: 80,
-    );
+      if (picked == null) return;
 
-    if (picked == null) return;
+      final selectedImage = File(picked.path);
 
-    final selectedImage = File(picked.path);
-
-    if (!mounted) return;
-
-    setState(() {
-      imageFile = selectedImage;
-    });
-
-    final prefs = await SharedPreferences.getInstance();
-
-    await prefs.setString(
-      'profile_image_path',
-      selectedImage.path,
-    );
-
-    await uploadImage();
-  } catch (e) {
-    debugPrint('PICK IMAGE ERROR: $e');
-
-    if (!mounted) return;
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Could not select image: $e'),
-      ),
-    );
-  }
-}
-
-
-
-
-Future<void> uploadImage() async {
-  if (imageFile == null) return;
-
-  setState(() {
-    isUploading = true;
-  });
-
-  try {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('token');
-
-    debugPrint('Token exists: ${token != null && token.isNotEmpty}');
-
-    if (token == null || token.isEmpty) {
-      throw Exception('No login token found. Please log in again.');
-    }
-
-    final request = http.MultipartRequest(
-      'POST',
-      Uri.parse(
-        'http://10.0.2.2:8000/api/profile/image',
-      ),
-    );
-
-    request.headers['Accept'] = 'application/json';
-    request.headers['Authorization'] = 'Bearer $token';
-
-    request.files.add(
-      await http.MultipartFile.fromPath(
-        'image',
-        imageFile!.path,
-      ),
-    );
-
-    final streamedResponse = await request.send().timeout(
-      const Duration(seconds: 30),
-    );
-
-    final response = await http.Response.fromStream(
-      streamedResponse,
-    );
-
-    debugPrint('UPLOAD STATUS: ${response.statusCode}');
-    debugPrint('UPLOAD RESPONSE: ${response.body}');
-
-    if (response.statusCode == 200) {
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Profile image uploaded successfully!'),
-        ),
-      );
-    } else {
-      throw Exception(
-        'Status ${response.statusCode}: ${response.body}',
-      );
-    }
-  } catch (e) {
-    debugPrint('UPLOAD ERROR: $e');
-
-    if (!mounted) return;
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Upload failed: $e'),
-      ),
-    );
-  } finally {
-    if (mounted) {
       setState(() {
-        isUploading = false;
+        imageFile = selectedImage;
+      });
+
+      final prefs = await SharedPreferences.getInstance();
+
+      await prefs.setString('profile_image_path', selectedImage.path);
+
+      await uploadImage();
+    } catch (e) {
+      debugPrint('PICK IMAGE ERROR: $e');
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Could not select image: $e')));
+    }
+  }
+
+  Future<void> changeEmail({
+    required String currentEmail,
+    required String newEmail,
+  }) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('token');
+
+      if (token == null || token.isEmpty) {
+        throw Exception('Please log in again.');
+      }
+
+      final response = await http
+          .put(
+            Uri.parse('http://10.0.2.2:8000/api/profile/email'),
+            headers: {
+              'Accept': 'application/json',
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+            body: jsonEncode({
+              'current_email': currentEmail,
+              'email': newEmail,
+            }),
+          )
+          .timeout(const Duration(seconds: 15));
+
+      debugPrint('CHANGE EMAIL STATUS: ${response.statusCode}');
+      debugPrint('CHANGE EMAIL RESPONSE: ${response.body}');
+
+      final data = jsonDecode(response.body);
+
+      if (response.statusCode == 200) {
+        await prefs.setString('email', newEmail);
+
+        if (!mounted) return;
+
+        setState(() {
+          email = newEmail;
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Email changed successfully!')),
+        );
+      } else {
+        throw Exception(data['message'] ?? 'Could not change email.');
+      }
+    } catch (e) {
+      debugPrint('CHANGE EMAIL ERROR: $e');
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error: $e')));
+    }
+  }
+
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('token');
+
+      if (token == null || token.isEmpty) {
+        throw Exception('Please log in again.');
+      }
+
+      final response = await http
+          .put(
+            Uri.parse('http://10.0.2.2:8000/api/profile/password'),
+            headers: {
+              'Accept': 'application/json',
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+            body: jsonEncode({
+              'current_password': currentPassword,
+              'password': newPassword,
+              'password_confirmation': newPassword,
+            }),
+          )
+          .timeout(const Duration(seconds: 15));
+
+      debugPrint('CHANGE PASSWORD STATUS: ${response.statusCode}');
+      debugPrint('CHANGE PASSWORD RESPONSE: ${response.body}');
+
+      final data = jsonDecode(response.body);
+
+      if (response.statusCode == 200) {
+        if (!mounted) return;
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Password changed successfully!')),
+        );
+      } else {
+        throw Exception(data['message'] ?? 'Could not change password.');
+      }
+    } catch (e) {
+      debugPrint('CHANGE PASSWORD ERROR: $e');
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error: $e')));
+    }
+  }
+
+  Future<void> uploadImage() async {
+    if (imageFile == null) return;
+
+    setState(() {
+      isUploading = true;
+    });
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('token');
+
+      debugPrint('Token exists: ${token != null && token.isNotEmpty}');
+
+      if (token == null || token.isEmpty) {
+        throw Exception('No login token found. Please log in again.');
+      }
+
+      final request = http.MultipartRequest(
+        'POST',
+        Uri.parse('http://10.0.2.2:8000/api/profile/image'),
+      );
+
+      request.headers['Accept'] = 'application/json';
+      request.headers['Authorization'] = 'Bearer $token';
+
+      request.files.add(
+        await http.MultipartFile.fromPath('image', imageFile!.path),
+      );
+
+      final streamedResponse = await request.send().timeout(
+        const Duration(seconds: 30),
+      );
+
+      final response = await http.Response.fromStream(streamedResponse);
+
+      debugPrint('UPLOAD STATUS: ${response.statusCode}');
+      debugPrint('UPLOAD RESPONSE: ${response.body}');
+
+      if (response.statusCode == 200) {
+        if (!mounted) return;
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Profile image uploaded successfully!')),
+        );
+      } else {
+        throw Exception('Status ${response.statusCode}: ${response.body}');
+      }
+    } catch (e) {
+      debugPrint('UPLOAD ERROR: $e');
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Upload failed: $e')));
+    } finally {
+      if (mounted) {
+        setState(() {
+          isUploading = false;
+        });
+      }
+    }
+  }
+
+  String name = "";
+  String email = "";
+
+  @override
+  void initState() {
+    super.initState();
+    loadProfileImage();
+    getUserData();
+  }
+
+  Future<void> loadProfileImage() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    final imagePath = prefs.getString('profile_image_path');
+
+    if (imagePath == null || imagePath.isEmpty) return;
+
+    final file = File(imagePath);
+
+    if (await file.exists() && mounted) {
+      setState(() {
+        imageFile = file;
       });
     }
   }
-}
 
+  Future<void> getUserData() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('token');
 
-@override
-void initState() {
-  super.initState();
-  loadProfileImage();
-}
+    if (token == null || token.isEmpty) {
+      debugPrint('No authentication token found.');
+      return;
+    }
 
-Future<void> loadProfileImage() async {
-  final prefs = await SharedPreferences.getInstance();
+    try {
+      final response = await http.get(
+        Uri.parse('http://10.0.2.2:8000/api/user'),
+        headers: {
+          'Accept': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
 
-  final imagePath = prefs.getString('profile_image_path');
+      debugPrint('User status: ${response.statusCode}');
+      debugPrint('User response: ${response.body}');
 
-  if (imagePath == null || imagePath.isEmpty) return;
+      if (response.statusCode == 200) {
+        final user = jsonDecode(response.body);
 
-  final file = File(imagePath);
+        final String? imagePath = user['profile_image'];
 
-  if (await file.exists() && mounted) {
-    setState(() {
-      imageFile = file;
-    });
+        String? imageUrl;
+
+        if (imagePath != null && imagePath.isNotEmpty) {
+          imageUrl = imagePath.startsWith('http')
+              ? imagePath
+              : 'http://10.0.2.2:8000/storage/${imagePath.replaceFirst(RegExp(r'^storage/'), '')}';
+        }
+
+        if (!mounted) return;
+
+        setState(() {
+          name = user['name'] ?? '';
+          email = user['email'] ?? '';
+          profileImageUrl = imageUrl;
+        });
+
+        await prefs.setString('username', name);
+        await prefs.setString('email', email);
+      } else {
+        debugPrint('Failed to load user profile.');
+      }
+    } catch (e) {
+      debugPrint('Error loading user profile: $e');
+    }
   }
-}
-
 
   @override
   Widget build(BuildContext context) {
@@ -172,18 +319,23 @@ Future<void> loadProfileImage() async {
               onTap: pickImage,
               child: CircleAvatar(
                 radius: 80,
+
                 backgroundImage: imageFile != null
                     ? FileImage(imageFile!)
-                    : null,
-                child: imageFile == null
-                    ? const Icon(Icons.person, size: 80)
+                    : (profileImageUrl != null
+                          ? NetworkImage(profileImageUrl!)
+                          : null),
+
+                child: imageFile == null && profileImageUrl == null
+                    ? const Icon(Icons.person, size: 40)
                     : null,
               ),
             ),
           ),
-          SizedBox(height: 30,),
-        Expanded(child: Container(
-           width: double.infinity,
+          SizedBox(height: 30),
+          Expanded(
+            child: Container(
+              width: double.infinity,
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
               decoration: const BoxDecoration(
                 color: Colors.white,
@@ -192,8 +344,221 @@ Future<void> loadProfileImage() async {
                   topRight: Radius.circular(35),
                 ),
               ),
-             // child: ,
-        ))
+              child: Column(
+                children: [
+                  const SizedBox(height: 15),
+
+                  const SizedBox(height: 15),
+
+                  Text(
+                    name,
+                    style: GoogleFonts.lora(
+                      fontSize: 22,
+                      color: lightColorScheme.primary,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+
+                  SizedBox(height: 10),
+
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        email,
+                        style: GoogleFonts.lora(
+                          fontSize: 18,
+                          color: Colors.grey,
+                          fontWeight: FontWeight.normal,
+                        ),
+                      ),
+                      SizedBox(width: 4,),
+                        IconButton(
+                        icon: const Icon(Icons.edit, color: Colors.blueAccent),
+                        onPressed: () {
+                          final currentEmailController =
+                              TextEditingController();
+                          final newEmailController = TextEditingController();
+
+                          showDialog(
+                            context: context,
+                            builder: (dialogContext) {
+                              return AlertDialog(
+                                title: const Text('Change Email'),
+                                content: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    TextField(
+                                      controller: currentEmailController,
+                                      keyboardType: TextInputType.emailAddress,
+                                      decoration: const InputDecoration(
+                                        labelText: 'Current Email',
+                                      ),
+                                    ),
+                                    const SizedBox(height: 15),
+                                    TextField(
+                                      controller: newEmailController,
+                                      keyboardType: TextInputType.emailAddress,
+                                      decoration: const InputDecoration(
+                                        labelText: 'New Email',
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () =>
+                                        Navigator.pop(dialogContext),
+                                    child: const Text('Cancel'),
+                                  ),
+                                  TextButton(
+                                    onPressed: () async {
+                                      final currentEmail =
+                                          currentEmailController.text.trim();
+                                      final newEmail = newEmailController.text
+                                          .trim();
+
+                                      if (currentEmail.isEmpty ||
+                                          newEmail.isEmpty) {
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          const SnackBar(
+                                            content: Text(
+                                              'Please fill in both fields.',
+                                            ),
+                                          ),
+                                        );
+                                        return;
+                                      }
+
+                                      if (newEmail == currentEmail) {
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          const SnackBar(
+                                            content: Text(
+                                              'Enter a different email.',
+                                            ),
+                                          ),
+                                        );
+                                        return;
+                                      }
+
+                                      Navigator.pop(dialogContext);
+
+                                      await changeEmail(
+                                        currentEmail: currentEmail,
+                                        newEmail: newEmail,
+                                      );
+
+                                      currentEmailController.dispose();
+                                      newEmailController.dispose();
+                                    },
+                                    child: const Text('Save'),
+                                  ),
+                                ],
+                              );
+                            },
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 10),
+                
+
+                  const SizedBox(height: 20),
+
+                  ElevatedButton(
+                    onPressed: () {
+                      final currentPasswordController = TextEditingController();
+                      final newPasswordController = TextEditingController();
+
+                      showDialog(
+                        
+                        context: context,
+                        builder: (dialogContext) {
+                          return AlertDialog(
+                            title: const Text('Change Password'),
+                            content: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                TextField(
+                                  controller: currentPasswordController,
+                                  obscureText: true,
+                                  decoration: const InputDecoration(
+                                    labelText: 'Current Password',
+                                  ),
+                                ),
+                                const SizedBox(height: 15),
+                                TextField(
+                                  controller: newPasswordController,
+                                  obscureText: true,
+                                  decoration: const InputDecoration(
+                                    labelText: 'New Password',
+                                  ),
+                                ),
+                              ],
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(dialogContext),
+                                child: const Text('Cancel'),
+                              ),
+                              TextButton(
+                                onPressed: () async {
+                                  final currentPassword =
+                                      currentPasswordController.text;
+                                  final newPassword =
+                                      newPasswordController.text;
+
+                                  if (currentPassword.isEmpty ||
+                                      newPassword.isEmpty) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text(
+                                          'Please fill in both fields.',
+                                        ),
+                                      ),
+                                    );
+                                    return;
+                                  }
+
+                                  if (newPassword.length < 8) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text(
+                                          'New password must be at least 8 characters.',
+                                        ),
+                                      ),
+                                    );
+                                    return;
+                                  }
+
+                                  Navigator.pop(dialogContext);
+
+                                  await changePassword(
+                                    currentPassword: currentPassword,
+                                    newPassword: newPassword,
+                                  );
+
+                                  currentPasswordController.dispose();
+                                  newPasswordController.dispose();
+                                },
+                                child: const Text('Save'),
+                              ),
+                            ],
+                          );
+                        },
+                      );
+                    },
+                    child: const Text('Change Password'),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ],
       ),
     );
