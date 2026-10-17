@@ -21,6 +21,63 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool isUploading = false;
   String? profileImageUrl;
 
+Future<void> logout() async {
+  final prefs = await SharedPreferences.getInstance();
+  final token = prefs.getString('token');
+
+  try {
+    if (token != null && token.isNotEmpty) {
+      final response = await http.post(
+        Uri.parse('http://10.0.2.2:8000/api/logout'),
+        headers: {
+          'Accept': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      debugPrint('Logout status: ${response.statusCode}');
+      debugPrint('Logout response: ${response.body}');
+
+      if (response.statusCode != 200) {
+        if (!mounted) return;
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Logout failed. Please try again.'),
+          ),
+        );
+
+        return;
+      }
+    }
+
+    // Clear local login data after successful logout.
+    await prefs.remove('token');
+    await prefs.remove('id');
+    await prefs.remove('username');
+    await prefs.remove('email');
+    await prefs.remove('isLogin');
+
+    if (!mounted) return;
+
+    Navigator.of(context).pushNamedAndRemoveUntil(
+      '/welcome',
+      (route) => false,
+    );
+  } catch (e) {
+    debugPrint('Logout error: $e');
+
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Could not connect to the server.'),
+      ),
+    );
+  }
+}
+
+
   Future<void> pickImage() async {
     try {
       final ImagePicker picker = ImagePicker();
@@ -470,7 +527,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                   const SizedBox(height: 20),
 
-                  ElevatedButton(
+                ElevatedButton(
+                  
                     onPressed: () {
                       final currentPasswordController = TextEditingController();
                       final newPasswordController = TextEditingController();
@@ -554,6 +612,37 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       );
                     },
                     child: const Text('Change Password'),
+                  ),
+                  SizedBox(height: 20,),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: lightColorScheme.primary,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 15),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      onPressed: logout,
+
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Text(
+                            'Logout',
+                            style: TextStyle(fontSize: 16),
+                          ),
+                          SizedBox(width: 10,),
+                          Icon(
+                            Icons.logout,
+                            color:Colors.white,
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
                 ],
               ),
