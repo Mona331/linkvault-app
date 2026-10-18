@@ -11,10 +11,10 @@ class Home extends StatefulWidget {
   const Home({super.key});
 
   @override
-  State<Home> createState() => _HomeState();
+  State<Home> createState() => HomeState();
 }
 
-class _HomeState extends State<Home> {
+class HomeState extends State<Home> {
   final List<Map<String, dynamic>> categories = [];
 
   bool isLoadingCategories = true;
@@ -508,6 +508,7 @@ class _HomeState extends State<Home> {
             padding: const EdgeInsets.all(15),
             child: Column(
               children: [
+              //  SizedBox(height: 40,),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -545,7 +546,7 @@ class _HomeState extends State<Home> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 15),
                 Container(
                   decoration: BoxDecoration(
                     color: const Color.fromARGB(197, 5, 99, 142),
@@ -747,8 +748,8 @@ class _HomeState extends State<Home> {
                                       ),
                                     ],
                                   ),
-                                  onTap: () {
-                                   Navigator.push(
+                                 onTap: () async {
+                                    await Navigator.push(
                                       context,
                                       MaterialPageRoute(
                                         builder: (context) =>
@@ -761,6 +762,10 @@ class _HomeState extends State<Home> {
                                             ),
                                       ),
                                     );
+
+                                    if (!mounted) return;
+
+                                    await fetchCategories();
                                   },
                                 ),
                               );

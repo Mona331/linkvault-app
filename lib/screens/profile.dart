@@ -13,10 +13,10 @@ class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
   @override
-  State<ProfileScreen> createState() => _ProfileScreenState();
+  State<ProfileScreen> createState() => ProfileScreenState();
 }
 
-class _ProfileScreenState extends State<ProfileScreen> {
+class ProfileScreenState extends State<ProfileScreen> {
   File? imageFile;
   bool isUploading = false;
   String? profileImageUrl;
@@ -371,6 +371,7 @@ Future<void> logout() async {
     return CustomScaffold(
       child: Column(
         children: [
+        //  SizedBox(height: 40,),
           Center(
             child: GestureDetector(
               onTap: pickImage,

@@ -9,10 +9,10 @@ class AddLink extends StatefulWidget {
   const AddLink({super.key});
 
   @override
-  State<AddLink> createState() => _AddLinkState();
+  State<AddLink> createState() => AddLinkState();
 }
 
-class _AddLinkState extends State<AddLink> {
+class AddLinkState extends State<AddLink> {
   final TextEditingController titleController = TextEditingController();
   final TextEditingController descriptionController = TextEditingController();
   final TextEditingController urlController = TextEditingController();
@@ -155,23 +155,23 @@ class _AddLinkState extends State<AddLink> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        title: Text(
-          'Add link',
-          style: TextStyle(
-            fontSize: 18,
-            color: lightColorScheme.primary,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      ),
+      // appBar: AppBar(
+      //   backgroundColor: Colors.white,
+      //   title: Text(
+      //     'Add link',
+      //     style: TextStyle(
+      //       fontSize: 18,
+      //       color: lightColorScheme.primary,
+      //       fontWeight: FontWeight.bold,
+      //     ),
+      //   ),
+      // ),
       body: Padding(
         padding: const EdgeInsets.all(11.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            SizedBox(height: 50),
+            SizedBox(height: 70),
             const Text(
               'Link Title',
               style: TextStyle(fontWeight: FontWeight.bold),
@@ -254,10 +254,25 @@ class _AddLinkState extends State<AddLink> {
               ),
             ),
             const SizedBox(height: 30),
-            const Text(
-              'Category',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
+            Row(
+  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  children: [
+    const Text(
+      'Category',
+      style: TextStyle(fontWeight: FontWeight.bold),
+    ),
+    IconButton(
+      onPressed: () {
+        setState(() {
+          isLoadingCategories = true;
+        });
+        fetchCategories();
+      },
+      icon: const Icon(Icons.refresh),
+      tooltip: 'Refresh categories',
+    ),
+  ],
+),
 
             const SizedBox(height: 8),
 
