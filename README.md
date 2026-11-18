@@ -35,16 +35,28 @@ LinkVault is built using **Flutter** for the mobile application and **Laravel** 
 
 ## 📸 Screenshots
 
-<!-- Add screenshots here -->
+### Welcome & Authentication
 
-| Login | Home |
-|---|---|
-| Screenshot | Screenshot |
+<p align="center">
+  <img src="screenshots/welcome.jpeg" width="220" alt="Welcome Screen"/>
+  <img src="screenshots/login.jpeg" width="220" alt="Login Screen"/>
+  <img src="screenshots/register.jpeg" width="220" alt="Register Screen"/>
+</p>
 
-| Add Link | Link Details |
-|---|---|
-| Screenshot | Screenshot |
+### Main Application
 
+<p align="center">
+  <img src="screenshots/home.jpeg" width="220" alt="Home Screen"/>
+  <img src="screenshots/links.png" width="220" alt="Links Screen"/>
+  <img src="screenshots/profile.jpeg" width="220" alt="Profile Screen"/>
+</p>
+
+### Link Management
+
+<p align="center">
+  <img src="screenshots/addlink.jpeg" width="220" alt="Add Link Screen"/>
+  <img src="screenshots/createcategory.jpeg" width="220" alt="Create Category Screen"/>
+</p>
 ## 🎥 Application Demo
 
 <!-- Add demo video or GIF here -->
