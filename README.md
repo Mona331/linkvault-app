@@ -57,6 +57,7 @@ LinkVault is built using **Flutter** for the mobile application and **Laravel** 
   <img src="screenshots/addlink.jpeg" width="220" alt="Add Link Screen"/>
   <img src="screenshots/createcategory.jpeg" width="220" alt="Create Category Screen"/>
 </p>
+
 ## 🎥 Application Demo
 
 <p align="center">
