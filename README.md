@@ -59,7 +59,9 @@ LinkVault is built using **Flutter** for the mobile application and **Laravel** 
 </p>
 ## 🎥 Application Demo
 
-<!-- Add demo video or GIF here -->
+<p align="center">
+  <img src="demo/linkvault-demo.gif" width="350" alt="LinkVault Demo"/>
+</p>
 
 ## ⚙️ Installation
 
